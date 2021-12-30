@@ -1,12 +1,14 @@
 'use strict';
 
-const os = require('os');
 const cluster = require('cluster');
+const { divideArr, cpuCount } = require('../helpers/helpers.js');
 
 console.log('Started master:', process.pid);
 
-const cpuCount = os.cpus().length;
 const workers = [];
+const task = divideArr([2, 17, 3, 2, 5, 7, 15, 22, 1, 14, 15, 9, 0, 11], cpuCount);
+let tasksDone = 0;
+const results = [];
 
 for (let i = 0; i < cpuCount; i++) {
   const worker = cluster.fork();
@@ -14,12 +16,9 @@ for (let i = 0; i < cpuCount; i++) {
   workers.push(worker);
 }
 
-const task = [2, 17, 3, 2, 5, 7, 15, 22, 1, 14, 15, 9, 0, 11];
-const results = [];
+workers.forEach((worker, i) => {
 
-workers.forEach(worker => {
-
-  worker.send({ task });
+  worker.send({ task: task[i] });
 
   worker.on('exit', code => {
     console.log('Worker exited:', worker.process.pid, code);
@@ -30,9 +29,10 @@ workers.forEach(worker => {
     console.log('Message from worker', worker.process.pid);
     console.log(message);
 
-    results.push(message.result);
+    results[i] = message.result;
+    tasksDone++;
 
-    if (results.length === cpuCount) {
+    if (tasksDone === cpuCount) {
       process.exit(0);
     }
 
